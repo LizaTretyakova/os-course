@@ -11,6 +11,8 @@
 #define OLD   1
 #define DEAD  2
 
+#define barrier() __asm__ volatile ("" : : : "memory")
+
 typedef struct lock_descriptor_t {
     int is_occupied;
 } lock_descriptor;

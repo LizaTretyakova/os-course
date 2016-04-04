@@ -125,6 +125,29 @@ static void create_n_join_test() {
     join(b);
 }
 
+void fork_join_and_die(void* arg) {
+    uint64_t i = (uint64_t)(arg);
+    if (i > 0) {
+        printf("I am creating a thread, i = %d\n", i);
+        --i;
+        thread* child = create_thread(fork_join_and_die, (void*)i);
+        printf("Joining child, I am: %d\n", i + 1);
+        join(child);
+        printf("Child dead, so do I\n");
+    } else {
+        printf("i is <= 0, I am useless\n");
+    }
+}
+
+static void cascade_test() {
+    printf("Enter cascade thread\n");
+    uint64_t i = 5;
+    thread* first = create_thread(fork_join_and_die, (void*)i);
+    printf("Joining first\n");
+    join(first);
+    printf("Joined first\n");
+}
+
 void main(void)
 {
 	setup_serial();
@@ -142,6 +165,7 @@ void main(void)
 //    slab_smoke_test();
 
     create_n_join_test();
+    cascade_test();
 
     printf("Still alive!\n");
 	while (1);

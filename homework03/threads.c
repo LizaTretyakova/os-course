@@ -17,7 +17,9 @@ volatile pid_t cnt;
 void lock(lock_descriptor* ld) {
     __asm__("cli");
 
+    barrier();
     while(ld->is_occupied) {
+        barrier();
         schedule();
     }
     ld->is_occupied = TRUE;
@@ -30,7 +32,9 @@ void lock(lock_descriptor* ld) {
 void unlock(lock_descriptor* ld) {
     __asm__("cli");
 
+    barrier();
     ld->is_occupied = FALSE;
+    barrier();
     printf("Unlock done\n");
 
     __asm__("sti");
@@ -100,9 +104,11 @@ void schedule() {
     if (((struct list_head*)cur)->next != (struct list_head*)cur) {
         printf("before switch cur=%p\n", cur);
         printf("!! cur->rsp at %p, new rsp is %p.\n", &(cur->rsp), ((thread*)(((struct list_head*)cur)->next))->rsp);
-        switch_threads(&(cur->rsp), ((thread*)(((struct list_head*)cur)->next))->rsp);
-        printf("switched threads from %llu to %llu\n", cur->id, ((thread*)(((struct list_head*)cur)->next))->id);
         cur = (thread*)(((struct list_head*)cur)->next);
+        barrier();
+        switch_threads(&(((thread*)(((struct list_head*)cur)->prev))->rsp), cur->rsp);
+        barrier();
+        printf("switched threads from %llu to %llu\n", cur->id, ((thread*)(((struct list_head*)cur)->next))->id);
     }
 }
 
@@ -115,7 +121,7 @@ void exit(thread* self) {
 
 void join(thread* who) {
     while(who->is_dead == FALSE) {
-        continue;
+        barrier();
     }
 /**/lock(common_ld);
     list_del((struct list_head*)who);
