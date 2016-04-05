@@ -146,10 +146,9 @@ void schedule() {
 }
 
 void exit(thread* self) {
-/**/uint64_t flags = lock(common_ld);
+//**/uint64_t flags = lock(common_ld);
     self->is_dead = TRUE;
-/**/unlock(common_ld, flags);
-    while(1);
+//**/unlock(common_ld, flags);
 }
 
 void join(thread* who) {
@@ -168,7 +167,7 @@ void thread_wrapper(thread* t) {
     __asm__("sti");
     (t->fptr)(t->arg);
     uint64_t flags = lock(common_ld);
-    t->is_dead = TRUE;
+    exit(t);
     unlock(common_ld, flags);
     schedule();
     printf("We shouldn't get here, but let call it while(true)\n");

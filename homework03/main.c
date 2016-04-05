@@ -123,13 +123,15 @@ static void create_n_join_test() {
     thread* a;
     thread* b;
     create_thread_test(&a, &b);
+    exit(a);
+    exit(b);
     join(a);
     join(b);
 }
 //*/
 //*
 void fork_join_and_die(void* arg) {
-    uint64_t i = (uint64_t)(arg);
+    uint64_t i = (uint64_t)arg;
     if (i > 0) {
         printf("I am creating a thread, my i = %d\n", i);
         --i;
@@ -143,8 +145,8 @@ void fork_join_and_die(void* arg) {
 }
 
 static void cascade_test(uint64_t a) {
-    printf("Enter cascade thread\n");
     uint64_t i = a;
+    printf("Enter cascade thread\n");
     thread* first = create_thread(fork_join_and_die, (void*)i);
     printf("Joining first\n");
     join(first);
