@@ -14,7 +14,7 @@ lock_descriptor* common_ld;
 volatile pid_t cnt;
 volatile pid_t is_set_threading;
 
-//*
+/*
 void lock(lock_descriptor* ld) {
     __asm__("cli");
 
@@ -55,16 +55,21 @@ void unlock(lock_descriptor* ld) {
     __asm__("sti");
 }
 //*/
-/*
+
 uint64_t lock(lock_descriptor *ld) {
+    uint64_t result = get_rflags();
+    (void)ld;
     __asm__("cli");
-    return get_rflags();
+    return result;
 }
 
-void unlock(lock_descriptor *ld, uint64_t frlags) {
-    set_rflags();
+void unlock(lock_descriptor *ld, uint64_t rflags) {
+    (void)ld;
+    if (rflags & (1 << 9)) {
+        __asm__("sti");
+    }
 }
-*/
+
 void setup_threading() {
     cnt = 0;
 
@@ -88,7 +93,7 @@ thread* create_thread(void (*fptr)(void*), void* arg) {
         return NULL;
     }
 
-/**/lock(common_ld);
+/**/uint64_t flags = lock(common_ld);
 
     list_add((struct list_head*)new_thread, (struct list_head*)head);
     new_thread->id = cnt;
@@ -114,7 +119,7 @@ thread* create_thread(void (*fptr)(void*), void* arg) {
     ++cnt;
 //    pid_t result = cnt - 1;
 
-/**/unlock(common_ld);
+/**/unlock(common_ld, flags);
 
     printf("created thread\n");
 
@@ -141,9 +146,9 @@ void schedule() {
 }
 
 void exit(thread* self) {
-/**/lock(common_ld);
+/**/uint64_t flags = lock(common_ld);
     self->is_dead = TRUE;
-/**/unlock(common_ld);
+/**/unlock(common_ld, flags);
     while(1);
 }
 
@@ -151,9 +156,9 @@ void join(thread* who) {
     while(who->is_dead == FALSE) {
         barrier();
     }
-/**/lock(common_ld);
+/**/uint64_t flags = lock(common_ld);
     list_del((struct list_head*)who);
-/**/unlock(common_ld);
+/**/unlock(common_ld, flags);
     kmem_free(who->init_stack);
     kmem_free(who);
 }
@@ -162,9 +167,9 @@ void thread_wrapper(thread* t) {
     printf("in thread_wrapper\n");
     __asm__("sti");
     (t->fptr)(t->arg);
-    lock(common_ld);
+    uint64_t flags = lock(common_ld);
     t->is_dead = TRUE;
-    unlock(common_ld);
+    unlock(common_ld, flags);
     schedule();
     printf("We shouldn't get here, but let call it while(true)\n");
     while(1);
@@ -174,4 +179,8 @@ uint64_t get_rflags() {
     uint64_t rflags;
     __asm__("pushfq\npopq %0" : "=g"(rflags));
     return rflags;
+}
+
+void set_rflags(uint64_t rflags) {
+    __asm__("push %0\npopfq" :: "g"(rflags));
 }

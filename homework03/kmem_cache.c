@@ -493,9 +493,9 @@ void *kmem_alloc(size_t size)
 
 //	return kmem_cache_alloc(kmem_pool[i]);
 
-/**/lock(common_ld);
+/**/uint64_t flags = lock(common_ld);
     void* result = kmem_cache_alloc(kmem_pool[i]);
-/**/unlock(common_ld);
+/**/unlock(common_ld, flags);
 
     return result;
 }
@@ -505,14 +505,14 @@ void kmem_free(void *ptr)
 	if (!ptr)
 		return;
 
-	struct kmem_slab *slab = kmem_get_slab(ptr);
+    struct kmem_slab *slab = kmem_get_slab(ptr);
 
 	if (!slab)
 		return;
 
-/**/lock(common_ld);
+/**/uint64_t flags = lock(common_ld);
 	kmem_cache_free(slab->cache, ptr);
-/**/unlock(common_ld);
+/**/unlock(common_ld, flags);
 }
 
 void setup_alloc(void)

@@ -49,10 +49,11 @@ void exit(thread*);
 void join(thread*);
 
 
-void lock(lock_descriptor*);
-void unlock(lock_descriptor*);
+uint64_t lock(lock_descriptor*);
+void unlock(lock_descriptor*, uint64_t);
 
 uint64_t get_rflags();
+void set_rflags(uint64_t);
 
 void switch_threads(void** , void* );
 void init_stack(void** , thread* , uint64_t);
