@@ -3,17 +3,19 @@
 
 #include <stdint.h>
 
+
 struct idt_ptr {
 	uint16_t size;
 	uint64_t base;
 } __attribute__((packed));
 
 struct irqchip {
-	void (*map)(unsigned);
-	void (*mask)(unsigned);
-	void (*unmask)(unsigned);
-	void (*eoi)(unsigned);
+    void (*map)(unsigned);
+    void (*mask)(unsigned);
+    void (*unmask)(unsigned);
+    void (*eoi)(unsigned);
 };
+
 
 static inline void set_idt(const struct idt_ptr *ptr)
 { __asm__ volatile ("lidt (%0)" : : "a"(ptr)); }
@@ -36,6 +38,9 @@ static inline void irqchip_unmask(struct irqchip *chip, unsigned irq)
 static inline void irqchip_eoi(struct irqchip *chip, unsigned irq)
 { if (chip->eoi) chip->eoi(irq); }
 
+//static inline void unmask_irq(int irq)
+//{ if (--irqmask_count[irq] == 0) irqchip_unmask(irqchip, irq); }
+void unmask_irq(int irq);
 
 typedef void (*irq_t)(int irq);
 void register_irq_handler(int irq, irq_t isr);

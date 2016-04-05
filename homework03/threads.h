@@ -13,6 +13,8 @@
 
 #define barrier() __asm__ volatile ("" : : : "memory")
 
+struct thread_t;
+
 typedef struct lock_descriptor_t {
     int is_occupied;
 } lock_descriptor;
@@ -38,6 +40,7 @@ extern thread* cur;
 extern thread* head; // idle thread
 extern lock_descriptor* common_ld;
 extern volatile pid_t cnt;
+extern volatile pid_t is_set_threading;
 
 void setup_threading();
 thread* create_thread(void (*fptr)(void*), void* arg);

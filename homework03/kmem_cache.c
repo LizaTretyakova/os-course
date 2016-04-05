@@ -486,8 +486,6 @@ static int kmem_cache_index(size_t size)
 
 void *kmem_alloc(size_t size)
 {
-//**/lock(common_ld);
-
 	const int i = kmem_cache_index(size);
 
 	if (i == -1)
@@ -495,16 +493,15 @@ void *kmem_alloc(size_t size)
 
 //	return kmem_cache_alloc(kmem_pool[i]);
 
+/**/lock(common_ld);
     void* result = kmem_cache_alloc(kmem_pool[i]);
-//**/unlock(common_ld);
+/**/unlock(common_ld);
 
     return result;
 }
 
 void kmem_free(void *ptr)
 {
-//**/lock(common_ld);
-
 	if (!ptr)
 		return;
 
@@ -513,9 +510,9 @@ void kmem_free(void *ptr)
 	if (!slab)
 		return;
 
+/**/lock(common_ld);
 	kmem_cache_free(slab->cache, ptr);
-
-//**/unlock(common_ld);
+/**/unlock(common_ld);
 }
 
 void setup_alloc(void)

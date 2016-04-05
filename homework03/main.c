@@ -10,6 +10,8 @@
 
 #include <sys/types.h>
 
+volatile pid_t is_set_threading;
+
 /*
 static bool range_intersect(phys_t l0, phys_t r0, phys_t l1, phys_t r1)
 {
@@ -99,8 +101,8 @@ static void slab_smoke_test(void)
 	kmem_cache_destroy(cache);
 #undef ALLOCS
 }
-*/
-
+//*/
+//*
 void print_meow(void* unused_arg) {
     (void) unused_arg;
     printf("Meow! =^^=");
@@ -124,11 +126,12 @@ static void create_n_join_test() {
     join(a);
     join(b);
 }
-
+//*/
+//*
 void fork_join_and_die(void* arg) {
     uint64_t i = (uint64_t)(arg);
     if (i > 0) {
-        printf("I am creating a thread, i = %d\n", i);
+        printf("I am creating a thread, my i = %d\n", i);
         --i;
         thread* child = create_thread(fork_join_and_die, (void*)i);
         printf("Joining child, I am: %d\n", i + 1);
@@ -139,17 +142,38 @@ void fork_join_and_die(void* arg) {
     }
 }
 
-static void cascade_test() {
+static void cascade_test(uint64_t a) {
     printf("Enter cascade thread\n");
-    uint64_t i = 5;
+    uint64_t i = a;
     thread* first = create_thread(fork_join_and_die, (void*)i);
     printf("Joining first\n");
     join(first);
     printf("Joined first\n");
 }
+//*/
+//*
+void print_many(void* unused_arg) {
+    (void) unused_arg;
+    for (int i = 0; i < 100000; ++i) {
+        printf("%d\n", i);
+    }
+}
 
+static void many_test() {
+    thread* first = create_thread(print_many, NULL);
+    thread* second = create_thread(print_many, NULL);
+    thread* third = create_thread(print_many, NULL);
+    join(first);
+    join(second);
+    join(third);
+
+    printf("Joined the three\n");
+}
+//*/
 void main(void)
 {
+    is_set_threading = FALSE;
+
 	setup_serial();
 	setup_misc();
 	setup_ints();
@@ -164,8 +188,9 @@ void main(void)
 //    buddy_smoke_test();
 //    slab_smoke_test();
 
+    many_test();
     create_n_join_test();
-    cascade_test();
+    cascade_test(3);
 
     printf("Still alive!\n");
 	while (1);

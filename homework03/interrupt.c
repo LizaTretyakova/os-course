@@ -5,7 +5,6 @@
 #include "string.h"
 #include "stdio.h"
 #include "threads.h"
-#include "time.h"
 
 #include <stdint.h>
 
@@ -129,13 +128,11 @@ static void default_exception_handler(struct thread_regs *frame)
 static inline void mask_irq(int irq)
 { if (irqmask_count[irq]++ == 0) irqchip_mask(irqchip, irq); }
 
-static inline void unmask_irq(int irq)
-{ if (--irqmask_count[irq] == 0) irqchip_unmask(irqchip, irq); }
-
 static inline void ack_irq(int irq)
 { irqchip_eoi(irqchip, irq); }
 
-unsigned long long jiffies;
+void unmask_irq(int irq)
+{ if (--irqmask_count[irq] == 0) irqchip_unmask(irqchip, irq); }
 
 void isr_common_handler(struct thread_regs *ctx)
 {
@@ -154,10 +151,6 @@ void isr_common_handler(struct thread_regs *ctx)
 	if (irq)
 		irq(irqno);
 	unmask_irq(irqno);
-
-    if (jiffies % HZ == 0) {
-        schedule();
-    }
 }
 
 void register_irq_handler(int irq, irq_t isr)

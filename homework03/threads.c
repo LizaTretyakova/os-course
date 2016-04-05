@@ -12,10 +12,18 @@ thread* cur;
 thread* head;
 lock_descriptor* common_ld;
 volatile pid_t cnt;
+volatile pid_t is_set_threading;
 
-
+//*
 void lock(lock_descriptor* ld) {
     __asm__("cli");
+
+    printf("in lock\n");
+    if(is_set_threading == FALSE) {
+        printf("not set up\n");
+        __asm__("sti");
+        return;
+    }
 
     barrier();
     while(ld->is_occupied) {
@@ -32,6 +40,13 @@ void lock(lock_descriptor* ld) {
 void unlock(lock_descriptor* ld) {
     __asm__("cli");
 
+    printf("in unlock\n");
+    if(is_set_threading == FALSE) {
+        printf("not set up\n");
+        __asm__("sti");
+        return;
+    }
+
     barrier();
     ld->is_occupied = FALSE;
     barrier();
@@ -39,7 +54,17 @@ void unlock(lock_descriptor* ld) {
 
     __asm__("sti");
 }
+//*/
+/*
+uint64_t lock(lock_descriptor *ld) {
+    __asm__("cli");
+    return get_rflags();
+}
 
+void unlock(lock_descriptor *ld, uint64_t frlags) {
+    set_rflags();
+}
+*/
 void setup_threading() {
     cnt = 0;
 
@@ -48,10 +73,11 @@ void setup_threading() {
     common_ld->is_occupied = FALSE;
     list_init((struct list_head*)head);
     head->id = cnt;
+
+    is_set_threading = TRUE;
 }
 
 thread* create_thread(void (*fptr)(void*), void* arg) {
-/**/lock(common_ld);
 
     // get some memory for stack
     void* new_stack_mem = kmem_alloc(2 * PAGE_SIZE);
@@ -61,6 +87,8 @@ thread* create_thread(void (*fptr)(void*), void* arg) {
     if (new_stack_mem == NULL || new_thread == NULL) {
         return NULL;
     }
+
+/**/lock(common_ld);
 
     list_add((struct list_head*)new_thread, (struct list_head*)head);
     new_thread->id = cnt;
@@ -125,13 +153,14 @@ void join(thread* who) {
     }
 /**/lock(common_ld);
     list_del((struct list_head*)who);
+/**/unlock(common_ld);
     kmem_free(who->init_stack);
     kmem_free(who);
-/**/unlock(common_ld);
 }
 
 void thread_wrapper(thread* t) {
     printf("in thread_wrapper\n");
+    __asm__("sti");
     (t->fptr)(t->arg);
     lock(common_ld);
     t->is_dead = TRUE;

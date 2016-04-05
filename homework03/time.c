@@ -42,6 +42,12 @@
 #define FREQ_VAL ((DIV_HIGH_BYTE << 8) | DIV_LOW_BYTE)
 
 
+//static
+//int irqmask_count[IDT_IRQS];
+//static
+//struct irqchip *irqchip;
+
+
 static unsigned long i8254_divisor(unsigned long freq)
 { return I8254_FREQUENCY / freq; }
 
@@ -60,8 +66,15 @@ unsigned long long jiffies;
 
 static void i8254_interrupt_handler(int irq)
 {
-	(void) irq;
+    (void) irq;
     ++jiffies;
+    if (jiffies % (HZ / 2) == 0) {
+        printf("PIT before unmask\n");
+        unmask_irq(irq);
+        printf("PIT after unmask, before schedule\n");
+        schedule();
+        printf("PIT after schedule\n");
+    }
 }
 
 void setup_time(void)
