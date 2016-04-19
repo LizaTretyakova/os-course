@@ -1,7 +1,6 @@
 #include "string.h"
 #include "fs.h"
 #include "stdlib.h"
-#include "rbtree.h"
 #include "kmem_cache.h"
 #include "stdio.h"
 #include "fs_utils.h"

@@ -2,12 +2,12 @@
 #include "fs.h"
 #include "fs_utils.h"
 #include "stdlib.h"
-#include "rbtree.h"
 #include "memory.h"
 #include "kmem_cache.h"
 #include "stdio.h"
 #include "threads.h"
 #include "list.h"
+#include "initramfs.h"
 
 #include <stddef.h>
 
@@ -18,6 +18,22 @@ void init_fs() {
     printf("Init_fs\n");
 
     fs_lock.is_occupied = FALSE;
+
+    extern const uint32_t mboot_info;
+    struct multiboot_info *mboot_header = (void *)((uintptr_t)mboot_info);
+
+    if(!((1 << 3) & mboot_header->flags)) {
+        printf("Invalid mboot_header -- halting\n");
+        while(1);
+    }
+
+    multiboot_module_t* modules = (void*)((uintptr_t)(mboot_header->mods_addr));
+    for(uint64_t i = 0; i < mboot_header->mods_count; ++i) {
+        if((modules + i)->mod_end - (modules + i)->mod_start >= sizeof(cpio_header)) {
+            // compare with MAGIC and further
+        }
+    }
+
 
     tree.root.name = ROOT_NAME;
     tree.root.node_type = DIR;

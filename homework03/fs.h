@@ -1,7 +1,6 @@
 #ifndef _FS_
 #define _FS_
 
-#include "rbtree.h"
 #include "threads.h"
 #include "list.h"
 
