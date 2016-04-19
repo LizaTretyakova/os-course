@@ -21,24 +21,23 @@ struct fs_node* fs_helper(char* name, node_t type) {
     printf("Entered fs_helper with name %s\n", name);
 
     uint64_t rflags = lock(&fs_lock);
-    struct fs_node* result = lookup_file(name, type, (struct fs_node*)(tree.root.children));
+    struct fs_node* result = lookup_file(name, type, &(tree.root));
     unlock(&fs_lock, rflags);
 
-    printf("Looked for the node with name %s: %p\n", name, result);
+    //printf("Looked for the node with name %s: %p\n", name, result);
 
     if(result == NULL) {
         init_fs_node(&result, name, type);
         char* dirname = get_dirname(name);
-        struct fs_node* containing_dir = fs_helper(dirname, type);
+        struct fs_node* containing_dir = fs_helper(dirname, DIR);
         kmem_free(dirname);
 
-        printf("Containing dir: %p name: %s children: %p\n", containing_dir, containing_dir->name, containing_dir->children);
         rflags = lock(&fs_lock);
-        insert_node(&(result->node), &(containing_dir->children));
+        list_add(&(result->node), &(containing_dir->children));
         unlock(&fs_lock, rflags);
-        printf("After inserting children is %p\n", containing_dir->children);
     }
 
+    printf("fs_helper result is %p\n", result);
     return result;
 }
 
@@ -85,27 +84,27 @@ void write(struct fs_node* file, void* buffer, uint64_t size, uint64_t offset) {
 }
 
 int readdir(struct fs_node* dir, struct fs_node* buffer, uint64_t size, uint64_t offset) {
-    if(dir == NULL || dir->children == NULL || buffer == NULL) {
+    if(dir == NULL || buffer == NULL) {
         printf("Passed an empty dir/buffer\n");
         return 0;
     }
 
     uint64_t rflags = lock(&fs_lock);
-    struct fs_node* cur = (struct fs_node*)(dir->children);
+    uint64_t i = 0;
     int res = 0;
-    printf("A part of listing the directory %s:\n", dir->name);
-    for(uint64_t i = 0; i < list_size(dir->children); i++) {
-        if(cur->node_type == REG) {
-            printf("REG %s\n", cur->name);
+    printf("    Listing of the directory %s:\n", dir->name);
+    for (struct list_head* cur = dir->children.next; cur != &(dir->children); cur = cur->next) {
+        if(((struct fs_node*)cur)->node_type == REG) {
+            printf("    REG %s\n", ((struct fs_node*)cur)->name);
         } else {
-            printf("DIR %s\n", cur->name);
+            printf("    DIR %s\n", ((struct fs_node*)cur)->name);
         }
 
         if(i >= offset && i < offset + size) {
-            buffer[i - offset] = *cur;
+            buffer[i - offset] = *((struct fs_node*)cur);
             ++res;
         }
-        cur = (struct fs_node*)(cur->node.next);
+        ++i;
     }
     unlock(&fs_lock, rflags);
 

@@ -4,7 +4,7 @@
 #include "fs.h"
 #include "threads.h"
 
-void insert_node(struct list_head* node, struct list_head** dest);
+//void insert_node(struct list_head* node, struct list_head** dest);
 struct fs_node* lookup_file(char* name, node_t type, struct fs_node* src);
 void init_fs_node(struct fs_node** result, char* name, node_t type);
 void init_fs();

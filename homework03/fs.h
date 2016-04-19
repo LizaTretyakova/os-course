@@ -28,7 +28,7 @@ struct fs_node {
     void* content;
     uint64_t content_size;
 
-    struct list_head* children;
+    struct list_head children;
 };
 
 struct fs_tree {

@@ -15,19 +15,15 @@ struct fs_tree tree;
 lock_descriptor fs_lock;
 
 void init_fs() {
-    printf("Before lock init\n");
+    printf("Init_fs\n");
+
     fs_lock.is_occupied = FALSE;
 
-    printf("Before tree init\n");
     tree.root.name = ROOT_NAME;
-    printf("Node_type?\n");
     tree.root.node_type = DIR;
-    printf("Content?\n");
     tree.root.content = kmem_alloc(2 * PAGE_SIZE);
-    printf("Content_size?\n");
     tree.root.content_size = 0;
-    printf("Children?\n");
-    tree.root.children = NULL;
+    list_init(&(tree.root.children));
 
     printf("Returning from init_fs\n");
 }
@@ -36,37 +32,49 @@ struct fs_node* lookup_file(char* name, node_t type, struct fs_node* src) {
     printf("Entered lookup_file for %s\n", name);
 
     if(strcmp(name, ROOT_NAME) == 0) {
+        printf("lookup We are (G)root\n");
         return &(tree.root);
     }
-    printf("We are not a root\n");
+//    printf("We are not a root\n");
 
     if(src == NULL) {
+        printf("lookup Passed NULL\n");
         return NULL;
     }
-    printf("Src is not NULL\n");
+//    printf("Src is not NULL\n");
 
+    printf("***%s***%s***\n", name, src->name);
+    if(type == REG) {
+        printf("***REG***");
+    } else {
+        printf("***DIR***");
+    }
+    if(src->node_type == REG) {
+        printf("REG***\n");
+    } else {
+        printf("DIR***\n");
+    }
     if(strcmp(name, src->name) == 0 && src->node_type == type) {
+        printf("lookup We found what we wanted\n");
         return src;
     }
-    printf("It's not the node we are looking for\n");
+//    printf("It's not the node we are looking for\n");
 
-    if(src->node_type == REG) {
+    if(src->node_type == REG || (src->node_type == DIR && list_empty(&(src->children)))) {
+        printf("lookup We have not found and are ni a leaf\n");
         return NULL;
     }
-    printf("Src is not a reg_file, it is %s\n", src->name);
+//    printf("Src is not a reg_file, it is %s\n", src->name);
 
-
-    struct fs_node* cur = (struct fs_node*)(src->children);
-    printf("Cur is %p\n", cur);
-    if(cur == NULL) {
-        return NULL;
-    }
-    for(uint64_t i = 0; i < list_size(src->children); ++i) {
-        struct fs_node* subtree_res = lookup_file(name, type, cur);
+//    printf("Cur is %p\n", cur);
+    for (struct list_head* cur = src->children.next; cur != &(src->children); cur = cur->next) {
+        struct fs_node* subtree_res = lookup_file(name, type, (struct fs_node*)cur);
         if(subtree_res != NULL) {
+            printf("lookup Found in a subtree\n");
             return subtree_res;
         }
     }
+    printf("lookup Nothing found\n");
     return NULL;
 }
 
@@ -87,7 +95,7 @@ void init_fs_node(struct fs_node** result, char* name, node_t type) {
         // which content? =O_o=
         (*result)->content = NULL;
     }
-    (*result)->children = NULL;
+    list_init(&((*result)->children));
 }
 
 char* get_dirname(char* filename) {
@@ -105,9 +113,10 @@ char* get_dirname(char* filename) {
     return result;
 }
 
+/*
 void insert_node(struct list_head* node, struct list_head** head) {
-    if(node == NULL) {
-        printf("Node should not be NULL\n");
+    if(node == NULL || *head == NULL) {
+        printf("Neither node or head should be NULL\n");
         return;
     }
 
@@ -118,4 +127,4 @@ void insert_node(struct list_head* node, struct list_head** head) {
         list_add(node, *head);
     }
 }
-
+*/
