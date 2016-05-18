@@ -1,11 +1,16 @@
 #include "kmem_cache.h"
 #include "interrupt.h"
+#include "initramfs.h"
+#include "threads.h"
 #include "memory.h"
 #include "serial.h"
 #include "paging.h"
 #include "stdio.h"
+#include "ramfs.h"
 #include "misc.h"
 #include "time.h"
+#include "vfs.h"
+#include "elf.h"
 
 static bool range_intersect(phys_t l0, phys_t r0, phys_t l1, phys_t r1)
 {
@@ -18,24 +23,24 @@ static bool range_intersect(phys_t l0, phys_t r0, phys_t l1, phys_t r1)
 
 static void buddy_smoke_test(void)
 {
-#define PAGES 10
-	struct page *page[PAGES];
-	int order[PAGES];
+	DBG_INFO("Start buddy test");
+	struct page *page[10];
+	int order[ARRAY_SIZE(page)];
 
-	for (int i = 0; i != PAGES; ++i) {
+	for (int i = 0; i != ARRAY_SIZE(page); ++i) {
 		page[i] = alloc_pages(i);
 		if (page[i]) {
 			const phys_t begin = page_paddr(page[i]);
 			const phys_t end = begin + (PAGE_SIZE << i);
-			printf("allocated [%#llx-%#llx]\n", begin, end - 1);
+			DBG_INFO("allocated [%#llx-%#llx]", begin, end - 1);
 			order[i] = i;
 		}
 	}
 
-	for (int i = 0; i != PAGES - 1; ++i) {
+	for (int i = 0; i != ARRAY_SIZE(page) - 1; ++i) {
 		if (!page[i])
 			break;
-		for (int j = i + 1; j != PAGES; ++j) {
+		for (int j = i + 1; j != ARRAY_SIZE(page); ++j) {
 			if (!page[j])
 				break;
 
@@ -49,16 +54,16 @@ static void buddy_smoke_test(void)
 		}
 	}
 
-	for (int i = 0; i != PAGES; ++i) {
+	for (int i = 0; i != ARRAY_SIZE(page); ++i) {
 		if (!page[i])
 			continue;
 
 		const phys_t begin = page_paddr(page[i]);
 		const phys_t end = begin + (PAGE_SIZE << i);
-		printf("freed [%#llx-%#llx]\n", begin, end - 1);
+		DBG_INFO("freed [%#llx-%#llx]", begin, end - 1);
 		free_pages(page[i], order[i]);
 	}
-#undef PAGES
+	DBG_INFO("Buddy test finished");
 }
 
 struct intlist {
@@ -68,12 +73,12 @@ struct intlist {
 
 static void slab_smoke_test(void)
 {
-#define ALLOCS 1000000
+	DBG_INFO("Start SLAB test");
 	struct kmem_cache *cache = KMEM_CACHE(struct intlist);
 	LIST_HEAD(head);
 	int i;
 
-	for (i = 0; i != ALLOCS; ++i) {
+	for (i = 0; i != 1000000; ++i) {
 		struct intlist *node = kmem_cache_alloc(cache);
 
 		if (!node)
@@ -82,7 +87,7 @@ static void slab_smoke_test(void)
 		list_add_tail(&node->link, &head);
 	}
 
-	printf("Allocated %d nodes\n", i);
+	DBG_INFO("Allocated %d nodes", i);
 
 	while (!list_empty(&head)) {
 		struct intlist *node = LIST_ENTRY(list_first(&head),
@@ -93,7 +98,66 @@ static void slab_smoke_test(void)
 	}
 
 	kmem_cache_destroy(cache);
-#undef ALLOCS
+	DBG_INFO("SLAB test finished");
+}
+
+static int test_function(void *dummy)
+{
+	(void) dummy;
+	return 0;
+}
+
+static void test_threading(void)
+{
+	DBG_INFO("Start threading test");
+	for (int i = 0; i != 10000; ++i) {
+		const pid_t pid = create_kthread(&test_function, 0);
+
+		DBG_ASSERT(pid >= 0);
+		wait(pid);
+	}
+	DBG_INFO("Threading test finished");
+}
+
+static void syscall(uint64_t syscall, uint64_t arg1, uint64_t arg2)
+{
+    __asm__ ("movq %0, %%rax\n\r"
+             "movq %1, %%rbx\n\r"
+             "movq %2, %%rcx\n\r"
+             "int $48\n\r"
+             :
+             : "m"(syscall), "m"(arg1), "m"(arg2)
+             : "rax", "rbx", "rcx", "memory");
+}
+
+static void test_ints()
+{
+    syscall(0, (uint64_t)"Hel", sizeof("Hel") - 1);
+    syscall(0, (uint64_t)"lo, ", sizeof("lo, ") - 1);
+    syscall(0, (uint64_t)"Wor", sizeof("Wor") - 1);
+    syscall(0, (uint64_t)"ld!\n", sizeof("ld!\n") - 1);
+}
+
+static void test_read_elf() {
+    //read_elf();
+    const pid_t pid = run_elf_new_thread();
+    wait(pid);
+}
+
+static int start_kernel(void *dummy)
+{
+	(void) dummy;
+
+	setup_ramfs();
+	setup_initramfs();
+
+	buddy_smoke_test();
+	slab_smoke_test();
+	test_threading();
+    test_ints();
+    test_read_elf();
+
+	return 0;
 }
 
 void main(void)
@@ -106,10 +170,12 @@ void main(void)
 	setup_paging();
 	setup_alloc();
 	setup_time();
-	local_irq_enable();
+	setup_threading();
+	setup_vfs();
 
-	buddy_smoke_test();
-	slab_smoke_test();
+	create_kthread(&start_kernel, 0);
+	local_preempt_enable();
+	idle();
 
 	while (1);
 }

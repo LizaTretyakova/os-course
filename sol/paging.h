@@ -131,6 +131,9 @@ static inline phys_t load_pml4(void)
 static inline void flush_tlb_addr(virt_t vaddr)
 { __asm__ volatile ("invlpg (%0)" : : "r"(vaddr) : "memory"); }
 
+static inline void flush_tlb(void)
+{ store_pml4(load_pml4()); }
+
 void *kmap(struct page **pages, size_t count);
 void kunmap(void *ptr);
 
